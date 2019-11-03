@@ -45,7 +45,7 @@ func NewThing(keyPair KeyPair, awsEndpoint string, thingName ThingName) (*Thing,
 
 	tlsConfig := &tls.Config{
 		Certificates: []tls.Certificate{tlsCert},
-		RootCAs: certs,
+		RootCAs:      certs,
 	}
 
 	if err != nil {
@@ -56,10 +56,11 @@ func NewThing(keyPair KeyPair, awsEndpoint string, thingName ThingName) (*Thing,
 
 	mqttOpts := mqtt.NewClientOptions()
 	mqttOpts.AddBroker(awsServerURL)
+	mqttOpts.SetAutoReconnect(true)
+	mqttOpts.SetConnectTimeout(0)
 	mqttOpts.SetMaxReconnectInterval(1 * time.Second)
 	mqttOpts.SetClientID(string(thingName))
 	mqttOpts.SetTLSConfig(tlsConfig)
-
 	c := mqtt.NewClient(mqttOpts)
 	if token := c.Connect(); token.Wait() && token.Error() != nil {
 		return nil, token.Error()
@@ -122,18 +123,18 @@ func (t *Thing) GetThingShadow() (Shadow, error) {
 }
 
 // UpdateThingShadow publish a message with new thing shadow
-func (t *Thing) UpdateThingShadow(payload Shadow) error {
-	token := t.client.Publish(fmt.Sprintf("$aws/things/%s/shadow/update", t.thingName), 0, false, []byte(payload))
+func (t *Thing) UpdateThingShadow(topic string, payload Shadow) error {
+	token := t.client.Publish(topic, 0, false, []byte(payload))
 	token.Wait()
 	return token.Error()
 }
 
 // SubscribeForThingShadowChanges returns the channel with the shadow updates
-func (t *Thing) SubscribeForThingShadowChanges() (chan Shadow, error) {
+func (t *Thing) SubscribeForThingShadowChanges(topic string) (chan Shadow, error) {
 	shadowChan := make(chan Shadow)
 
 	token := t.client.Subscribe(
-		fmt.Sprintf("$aws/things/%s/shadow/update/accepted", t.thingName),
+		topic,
 		0,
 		func(client mqtt.Client, msg mqtt.Message) {
 			shadowChan <- msg.Payload()
