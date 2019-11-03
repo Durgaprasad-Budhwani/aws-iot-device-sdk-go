@@ -1,4 +1,4 @@
-module github.com/durgaprasad-budhwani/aws-iot-device-sdk-go
+module github.com/Durgaprasad-Budhwani/aws-iot-device-sdk-go
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.1.1
